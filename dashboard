@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quantum AI & SWE Curriculum Dashboard</title>
+    <!-- Chosen Palette: "Cool Slate" - A professional and calm palette with a light gray background, slate blue for accents, and subtle greens/blues for highlights, promoting focus and clarity. -->
+    <!-- Application Structure Plan: A tab-based Single Page Application (SPA) is chosen for its clarity and ease of navigation. Users can switch between four months without scrolling or page reloads. Within each month, weeks are organized sequentially, and each day is a clickable card that reveals detailed tasks. This hierarchical structure (Month -> Week -> Day) breaks down the dense curriculum into manageable chunks, preventing information overload. A dynamic progress bar and a skills summary chart are included on the main dashboard to provide motivation and a high-level overview, enhancing user engagement and understanding of their learning journey. This structure is superior to a linear document for long-term tracking and daily reference. -->
+    <!-- Visualization & Content Choices: 
+        - [Curriculum Structure -> Goal: Organize -> Presentation: Tabs & Accordion Cards -> Interaction: Click to reveal -> Justification: Breaks down the 90-day plan into digestible daily tasks, preventing user from being overwhelmed. Library: Vanilla JS]
+        - [Overall Progress -> Goal: Inform/Motivate -> Presentation: Progress Bar -> Interaction: Dynamic update based on current date -> Justification: Provides a clear, immediate visual indicator of the user's journey completion. Library: HTML/CSS/JS]
+        - [Skill Distribution -> Goal: Compare/Inform -> Presentation: Donut Chart -> Interaction: Hover to see skill percentage -> Justification: Synthesizes the entire curriculum's focus into one graphic, showing the proportion of time dedicated to core areas like DSA, Qiskit, and ML. Library: Chart.js]
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9;
+        }
+        .tab-button {
+            transition: all 0.3s ease;
+        }
+        .tab-button.active {
+            background-color: #4f46e5;
+            color: white;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .day-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            cursor: pointer;
+        }
+        .day-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        .day-details {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease-in-out, padding 0.5s ease-in-out;
+        }
+        .day-details.open {
+            max-height: 1000px; /* Large enough to fit content */
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+        }
+        .progress-bar-fill {
+            transition: width 0.5s ease-in-out;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 400px;
+        }
+    </style>
+</head>
+<body class="antialiased text-slate-800">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-7xl">
+        <!-- Header -->
+        <header class="text-center mb-10">
+            <h1 class="text-4xl md:text-5xl font-bold text-slate-900">Quantum AI & SWE Curriculum</h1>
+            <p class="mt-2 text-lg text-slate-600">Your 4-Month Accelerated Journey Dashboard</p>
+        </header>
+
+        <!-- Main Dashboard -->
+        <main class="bg-white rounded-2xl shadow-xl p-6 md:p-8">
+            <!-- Stats and Progress Section -->
+            <section class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="md:col-span-2 bg-slate-50 rounded-xl p-6">
+                    <h2 class="text-xl font-bold mb-2">Your Progress</h2>
+                    <p class="text-slate-600 mb-4">You are on <strong id="progress-day">Day 1</strong> of 120. Keep up the great work!</p>
+                    <div class="w-full bg-slate-200 rounded-full h-4">
+                        <div id="progress-bar" class="progress-bar-fill bg-indigo-600 h-4 rounded-full text-center text-white text-xs" style="width: 1%;"></div>
+                    </div>
+                </div>
+                <div class="bg-slate-50 rounded-xl p-6 flex flex-col justify-center items-center">
+                    <h2 class="text-xl font-bold mb-2">Total Projects</h2>
+                    <p class="text-6xl font-bold text-indigo-600">4</p>
+                    <p class="text-slate-600">Across 4 Months</p>
+                </div>
+            </section>
+
+            <!-- Skills Chart Section -->
+            <section class="mb-10">
+                <h2 class="text-2xl font-bold text-center mb-6">Curriculum Skill Distribution</h2>
+                <div class="chart-container">
+                    <canvas id="skillsChart"></canvas>
+                </div>
+                <p class="text-center text-slate-500 mt-4 text-sm">This chart provides a high-level overview of the core skill categories covered in your 120-day plan. Hover over a segment to see the details.</p>
+            </section>
+
+            <!-- Curriculum Tabs -->
+            <section>
+                <div class="border-b border-slate-200">
+                    <nav class="-mb-px flex space-x-2 md:space-x-6" aria-label="Tabs">
+                        <button class="tab-button active whitespace-nowrap py-3 px-4 border-b-2 font-semibold text-sm rounded-t-lg" data-tab="month1">Month 1</button>
+                        <button class="tab-button text-slate-500 hover:text-indigo-600 whitespace-nowrap py-3 px-4 border-b-2 font-semibold text-sm rounded-t-lg" data-tab="month2">Month 2</button>
+                        <button class="tab-button text-slate-500 hover:text-indigo-600 whitespace-nowrap py-3 px-4 border-b-2 font-semibold text-sm rounded-t-lg" data-tab="month3">Month 3</button>
+                        <button class="tab-button text-slate-500 hover:text-indigo-600 whitespace-nowrap py-3 px-4 border-b-2 font-semibold text-sm rounded-t-lg" data-tab="month4">Month 4</button>
+                    </nav>
+                </div>
+
+                <!-- Tab Content -->
+                <div id="tab-content" class="mt-8">
+                    <!-- Content will be dynamically rendered here -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        const curriculumData = {
+            // Month 1
+            1: { week: 1, focus: "Environment Setup & Git Kick-off", tasks: ["PyCharm: Create new project with `quantum_ai_env` virtual environment.", "Terminal (in PyCharm): `pip install numpy pandas matplotlib scikit-learn jupyterlab qiskit torch` (or `tensorflow`).", "PyCharm: Verify installations; explore settings.", "Jupyter Notebooks: Create `python_basics_review.ipynb`; run basic code; learn Markdown.", "Git Installation: Confirm `git --version`.", "Git Config: `git config --global user.name \"Your Name\"`, `git config --global user.email \"your.email@example.com\"`.", "PyCharm Git Integration: `VCS` -> `Enable Version Control`.", "Terminal (in PyCharm): `git add .`, `git commit -m \"Initial setup\"`.", "GitHub: Create new public repo (`QuantumAI_LearningJourney`, no README init).", "Terminal (in PyCharm): `git remote add origin ...`, `git branch -M main`, `git push -u origin main`.", "Practice: `git status`, `git add`, `git commit`, `git push`. Clone a public repo to understand `git clone`."], skills: ["Python", "PyCharm", "Jupyter Notebooks", "Git", "GitHub"], problems: [] },
+            2: { week: 1, focus: "Python Data Structures & Git Workflow", tasks: ["Python: Review Lists, Tuples, Dictionaries, Sets (operations, mutability) in `python_basics_review.ipynb`.", "Git: Practice `git push`, `git pull`. Learn about `git log`.", "DSA (Arrays & Hashing): Solve 1-2 \"Easy\" problems from NeetCode.io.", "GitHub: Commit/push LeetCode solutions to a dedicated `DailyDSA_Practice` repo (create if new)."], skills: ["Python", "Git", "GitHub", "DSA"], problems: ["LeetCode 1: Two Sum", "LeetCode 217: Contains Duplicate", "LeetCode 242: Valid Anagram"] },
+            3: { week: 1, focus: "Python Control Flow & Git Branching", tasks: ["Python: Review `if/elif/else`, `for` loops, `while` loops, `break`, `continue`, `try/except`.", "Git: Learn branching (`git branch`, `git checkout`). Practice creating/switching branches.", "DSA (Arrays & Hashing): Solve 2 \"Easy\" problems. Review optimal solutions."], skills: ["Python", "Git", "DSA"], problems: ["LeetCode 128: Longest Consecutive Sequence", "LeetCode 347: Top K Frequent Elements"] },
+            4: { week: 1, focus: "Python Classes & Modules", tasks: ["Python: Review Object-Oriented Programming (classes, objects, `__init__`, methods). Understand importing modules.", "Git: Practice merging branches (`git merge`). Resolve a simple merge conflict.", "DSA (Arrays & Hashing): Solve 2 \"Easy\" problems. Focus on optimal solutions."], skills: ["Python", "Git", "DSA"], problems: ["LeetCode 238: Product of Array Except Self", "LeetCode 36: Valid Sudoku"] },
+            5: { week: 1, focus: "NumPy & DSA: Two Pointers", tasks: ["NumPy: Introduction to arrays, basic operations, broadcasting, indexing, slicing. Practice in a notebook.", "Git/GitHub: Ensure all LeetCode solutions are pushed to your public repo. Check GitHub activity.", "DSA (Two Pointers): Solve 1-2 \"Easy\" problems from NeetCode.io."], skills: ["Python", "NumPy", "DSA"], problems: ["LeetCode 125: Valid Palindrome", "LeetCode 11: Container With Most Water"] },
+            6: { week: 1, focus: "Pandas & DSA: Two Pointers", tasks: ["Pandas: Introduction to Series and DataFrames, creating, indexing, basic data manipulation (`read_csv`, `loc`, `iloc`, `groupby`).", "DSA (Two Pointers): Solve 2 \"Easy\" problems."], skills: ["Python", "Pandas", "DSA"], problems: ["LeetCode 15: 3Sum (Understand approach, may be Medium difficulty)", "LeetCode 42: Trapping Rain Water (May be Medium/Hard)"] },
+            7: { week: 1, focus: "Matplotlib/Scikit-learn & DSA Review", tasks: ["Matplotlib/Seaborn: Basic plotting (line, scatter, bar).", "Scikit-learn: Load a dataset (e.g., Iris), train a simple classifier (`LogisticRegression`), evaluate accuracy. Understand `fit`, `predict`.", "DSA: Review all concepts learned. Solve 1-2 \"Medium\" problems from Arrays/Two Pointers/Sliding Window if comfortable, otherwise more \"Easy\"."], skills: ["Python", "Matplotlib", "ML", "DSA"], problems: ["LeetCode 49: Group Anagrams (Medium)", "LeetCode 20: Valid Parentheses (Easy, but good for Stack intro)"] },
+            8: { week: 2, focus: "Qiskit Setup & Qubits", tasks: ["Qiskit: Install Qiskit. Introduction to `QuantumCircuit`, `QuantumRegister`, `ClassicalRegister`.", "Quantum Concepts: Understand qubits, Bloch sphere (conceptual).", "DSA (Sliding Window): Solve 1-2 \"Easy\" problems from NeetCode.io."], skills: ["Qiskit", "QC", "DSA"], problems: ["LeetCode 121: Best Time to Buy and Sell Stock", "LeetCode 3: Longest Substring Without Repeating Characters (Medium)"] },
+            9: { week: 2, focus: "Quantum Gates", tasks: ["Qiskit: Implement basic quantum gates (H, X, Y, Z, CNOT, T) on single and two qubits. Visualize circuits.", "Quantum Concepts: Understand gate operations mathematically (matrix form conceptually).", "DSA (Sliding Window): Solve 2 \"Easy\" problems."], skills: ["Qiskit", "QC", "DSA"], problems: ["LeetCode 209: Minimum Size Subarray Sum", "LeetCode 76: Minimum Window Substring (Hard, understand concept)"] },
+            10: { week: 2, focus: "Measurement & Simulators", tasks: ["Qiskit: Performing measurements, understanding measurement outcomes. Using `AerSimulator` (`qasm_simulator`, `statevector_simulator`).", "Quantum Concepts: Born rule, probabilistic outcomes.", "DSA (Stack): Solve 1-2 \"Easy\" problems from NeetCode.io."], skills: ["Qiskit", "QC", "DSA"], problems: ["LeetCode 20: Valid Parentheses", "LeetCode 150: Evaluate Reverse Polish Notation (Medium)"] },
+            11: { week: 2, focus: "PyTorch / TensorFlow Intro", tasks: ["ML Framework: Install PyTorch/TensorFlow. Create tensors, basic tensor operations.", "ML Concepts: Understand concept of computational graph.", "DSA (Stack): Solve 2 \"Easy\" problems."], skills: ["ML", "DSA"], problems: ["LeetCode 84: Largest Rectangle in Histogram (Hard, understand concept)", "LeetCode 739: Daily Temperatures (Medium)"] },
+            12: { week: 2, focus: "Basic Neural Network (PyTorch/TF)", tasks: ["ML Framework: Build a simple Feedforward Neural Network (FFNN) for a classification task (e.g., MNIST digits). Define layers, loss function, optimizer.", "ML Concepts: Understand concepts of forward pass, backward pass, gradient descent.", "DSA (Queue): Solve 1-2 \"Easy\" problems from NeetCode.io."], skills: ["ML", "DSA"], problems: ["LeetCode 232: Implement Queue using Stacks", "LeetCode 933: Number of Recent Calls"] },
+            13: { week: 2, focus: "Training Loop & Evaluation (PyTorch/TF)", tasks: ["ML Framework: Implement a basic training loop. Track loss and accuracy. Evaluate the model.", "DSA (Queue): Solve 2 \"Easy\" problems."], skills: ["ML", "DSA"], problems: ["LeetCode 622: Design Circular Queue", "LeetCode 225: Implement Stack using Queues"] },
+            14: { week: 2, focus: "Project 1 Kick-off & Design", tasks: ["Project 1: \"Quantum Circuit Analyzer with Classical ML Prediction.\" Define specific features to extract (e.g., gate count, circuit depth, number of CNOTs). Outline the ML model (e.g., Logistic Regression or a simple Linear Regression for depth).", "DSA: Review and consolidate learnings from Arrays & Hashing, Two Pointers, Sliding Window, Stack, Queue. Attempt 1-2 \"Medium\" problems from these categories."], skills: ["Project", "DSA"], problems: ["LeetCode 49: Group Anagrams (Medium)", "LeetCode 206: Reverse Linked List (Easy, but good for Linked List intro)"] },
+            15: { week: 3, focus: "Project 1 - Data Generation & Feature Extraction", tasks: ["Project 1: Write Python code to generate random quantum circuits with Qiskit. Extract features and store in a Pandas DataFrame.", "DSA (Linked Lists): Solve 1-2 \"Easy\" problems from NeetCode.io."], skills: ["Python", "Pandas", "Qiskit", "Project", "DSA"], problems: ["LeetCode 206: Reverse Linked List", "LeetCode 21: Merge Two Sorted Lists"] },
+            16: { week: 3, focus: "Project 1 - ML Model Integration", tasks: ["Project 1: Integrate a Scikit-learn model. Train it on your extracted features to predict a \"complexity\" score.", "DSA (Linked Lists): Solve 2 \"Easy\" problems."], skills: ["ML", "Scikit-learn", "Project", "DSA"], problems: ["LeetCode 19: Remove Nth Node From End of List", "LeetCode 141: Linked List Cycle"] },
+            17: { week: 3, focus: "Project 1 - Analysis & Visualization", tasks: ["Project 1: Analyze the model's performance. Use Matplotlib/Seaborn to visualize circuit properties and model predictions.", "DSA (Arrays & Hashing): Attempt 1-2 \"Medium\" problems."], skills: ["Matplotlib", "Project", "DSA"], problems: ["LeetCode 128: Longest Consecutive Sequence", "LeetCode 347: Top K Frequent Elements"] },
+            18: { week: 3, focus: "Project 1 - Refinement & Documentation", tasks: ["Project 1: Refactor code for clarity. Write a detailed README for your GitHub repo.", "Git/GitHub: Push all Project 1 code to a new public repo (`QuantumCircuitAnalyzer`)."], skills: ["Project", "Git", "GitHub"], problems: [] },
+            19: { week: 3, focus: "Qiskit - Basic Quantum Algorithms", tasks: ["Qiskit: Implement Deutsch-Jozsa algorithm or Superdense Coding/Quantum Teleportation.", "DSA (Two Pointers): Attempt 1-2 \"Medium\" problems."], skills: ["Qiskit", "QC", "DSA"], problems: ["LeetCode 15: 3Sum", "LeetCode 11: Container With Most Water"] },
+            20: { week: 3, focus: "ML Framework - CNNs Basics", tasks: ["ML Framework (PyTorch/TF): Learn about Convolutional Layers, Pooling Layers. Build a simple CNN for MNIST or CIFAR-10.", "ML Concepts: Understand why CNNs are effective for image data.", "DSA (Stack/Queue): Attempt 1-2 \"Medium\" problems."], skills: ["ML", "DSA"], problems: ["LeetCode 739: Daily Temperatures", "LeetCode 84: Largest Rectangle in Histogram"] },
+            21: { week: 3, focus: "ML Framework - CNN Training & Evaluation", tasks: ["ML Framework: Implement training loop for your simple CNN. Evaluate the model. Understand overfitting.", "DSA: Consolidate all DSA topics covered. Re-solve any challenging problems."], skills: ["ML", "DSA"], problems: [] },
+            22: { week: 4, focus: "Qiskit - AerSimulator Advanced Usage", tasks: ["Qiskit: Explore `statevector_simulator`. Understand density matrices conceptually.", "DSA (Trees - DFS/BFS Traversals): Solve 1-2 \"Easy\" problems."], skills: ["Qiskit", "QC", "DSA"], problems: ["LeetCode 104: Maximum Depth of Binary Tree", "LeetCode 102: Binary Tree Level Order Traversal (BFS)"] },
+            23: { week: 4, focus: "Qiskit - Qiskit Runtime (Conceptual)", tasks: ["Qiskit: Understand the concept of Qiskit Runtime for optimizing quantum workflows. Explore documentation.", "DSA (Trees): Solve 2 \"Easy\" problems."], skills: ["Qiskit", "QC", "DSA"], problems: ["LeetCode 226: Invert Binary Tree", "LeetCode 572: Subtree of Another Tree"] },
+            24: { week: 4, focus: "Reinforcement Learning - Concepts", tasks: ["RL: Watch introductory videos on RL (Agent, Environment, States, Actions, Rewards, Policy, Value Function).", "DSA (Trees): Attempt 1-2 \"Medium\" problems."], skills: ["ML", "RL", "DSA"], problems: ["LeetCode 98: Validate Binary Search Tree", "LeetCode 105: Construct Binary Tree from Preorder and Inorder Traversal"] },
+            25: { week: 4, focus: "Reinforcement Learning - Q-Learning (Conceptual)", tasks: ["RL: Understand the Q-learning algorithm. Look at simple pseudo-code examples.", "DSA (Binary Search): Solve 1-2 \"Easy\" problems."], skills: ["ML", "RL", "DSA"], problems: ["LeetCode 704: Binary Search", "LeetCode 35: Search Insert Position"] },
+            26: { week: 4, focus: "Git - Advanced Workflow & Profile Review", tasks: ["Git/GitHub: Practice `git rebase` (simple cases). Review your GitHub profile.", "DSA (Binary Search): Solve 2 \"Easy\" problems."], skills: ["Git", "GitHub", "DSA"], problems: ["LeetCode 33: Search in Rotated Sorted Array (Medium)", "LeetCode 153: Find Minimum in Rotated Sorted Array (Medium)"] },
+            27: { week: 4, focus: "DSA - Mock Interview Practice", tasks: ["DSA: Choose 2 \"Medium\" problems. Solve them aloud, explaining your thought process and complexity.", "Interview Prep"], skills: ["DSA", "Communication"], problems: ["LeetCode 54: Spiral Matrix (Medium)", "LeetCode 200: Number of Islands (Medium)"] },
+            28: { week: 4, focus: "Catch-up & Review", tasks: ["Review all concepts from Month 1.", "Re-solve any challenging DSA problems."], skills: ["Review"], problems: [] },
+            29: { week: 4, focus: "Prepare for Month 2 & PhD/Job Prospecting", tasks: ["Review Month 2 objectives.", "Start drafting a \"Skills\" section for your CV.", "Identify professors/labs for PhD applications."], skills: ["Career Planning"], problems: [] },
+            30: { week: 4, focus: "Rest & Recharge / Light Review", tasks: ["Take a well-deserved break or do a light review."], skills: ["Rest"], problems: [] },
+            // Month 2
+            31: { week: 5, focus: "Qiskit: VQE Introduction", tasks: ["Quantum: Understand Variational Quantum Eigensolver (VQE).", "Qiskit: Explore `qiskit.nature` for VQE examples (e.g., H2 molecule).", "DSA (Trees): Solve 1-2 \"Easy\" problems."], skills: ["Qiskit", "QC", "DSA"], problems: ["LeetCode 104: Maximum Depth of Binary Tree", "LeetCode 102: Binary Tree Level Order Traversal (BFS)"] },
+            32: { week: 5, focus: "Qiskit: QAOA Introduction", tasks: ["Quantum: Understand Quantum Approximate Optimization Algorithm (QAOA).", "Qiskit: Explore `qiskit.optimization` for QAOA examples (e.g., Max-Cut).", "DSA (Trees): Solve 2 \"Easy\" problems."], skills: ["Qiskit", "QC", "DSA"], problems: ["LeetCode 226: Invert Binary Tree", "LeetCode 572: Subtree of Another Tree"] },
+            33: { week: 5, focus: "DSA: Binary Trees (Properties & Traversal)", tasks: ["DSA: Deep dive into Binary Tree properties. Practice BFS/DFS traversals.", "LeetCode: Solve 1-2 \"Medium\" Tree problems."], skills: ["DSA"], problems: ["LeetCode 98: Validate Binary Search Tree", "LeetCode 230: Kth Smallest Element in a BST"] },
+            34: { week: 5, focus: "Python: Advanced Functions & Decorators", tasks: ["Python: Review lambda, `*args`, `**kwargs`. Understand decorators.", "DSA (Binary Trees): Solve 2 \"Medium\" Tree problems."], skills: ["Python", "DSA"], problems: ["LeetCode 105: Construct Binary Tree from Preorder and Inorder Traversal", "LeetCode 199: Binary Tree Right Side View"] },
+            35: { week: 5, focus: "PyTorch/TF: Custom Datasets & DataLoaders", tasks: ["ML Framework: Learn to create custom `Dataset` and `DataLoader` classes.", "ML Concepts: Understand efficient data loading.", "DSA (Graphs): Understand graph representations."], skills: ["ML", "DSA"], problems: ["LeetCode 200: Number of Islands (BFS/DFS intro)", "LeetCode 133: Clone Graph"] },
+            36: { week: 5, focus: "DSA: Graphs (BFS & DFS on Graphs)", tasks: ["DSA: Apply BFS and DFS to graph problems. Understand connected components.", "LeetCode: Solve 1-2 \"Medium\" Graph problems."], skills: ["DSA"], problems: ["LeetCode 200: Number of Islands", "LeetCode 695: Max Area of Island"] },
+            37: { week: 5, focus: "Project 2 Kick-off & Design", tasks: ["Project 2: \"Containerized Hybrid QAOA Solver for Max-Cut Problem on AWS.\" Outline classical and quantum approaches.", "DSA: Review Tree and Graph concepts. Attempt 1-2 more \"Medium\" problems."], skills: ["Project", "DSA"], problems: ["LeetCode 994: Rotting Oranges (BFS)", "LeetCode 207: Course Schedule (DFS/Topological Sort)"] },
+            38: { week: 6, focus: "Docker: Fundamentals", tasks: ["Tools: Install Docker Desktop.", "Docker: Learn containers. Create a `Dockerfile` for a Python app. `docker build`, `docker run`.", "DSA (Graphs): Solve 2 \"Medium\" Graph problems."], skills: ["Docker", "MLOps", "DSA"], problems: ["LeetCode 417: Pacific Atlantic Water Flow", "LeetCode 323: Number of Connected Components in an Undirected Graph (Premium, find similar)"] },
+            39: { week: 6, focus: "Docker: Containerizing Project 1", tasks: ["Docker: Create a `Dockerfile` for your Project 1.", "DSA (Graphs): Attempt 1-2 \"Hard\" Graph problems (conceptual understanding)."], skills: ["Docker", "MLOps", "DSA"], problems: ["LeetCode 130: Surrounded Regions", "LeetCode 743: Network Delay Time"] },
+            40: { week: 6, focus: "AWS: EC2 & S3 Basics", tasks: ["Cloud (AWS): Sign up for AWS Free Tier.", "AWS: Learn EC2 (virtual machines) and S3 (object storage).", "Hands-on: Launch an EC2 instance. Create an S3 bucket.", "DSA (Dynamic Programming - Intro): Understand memoization vs. tabulation."], skills: ["Cloud", "AWS", "DSA"], problems: ["LeetCode 70: Climbing Stairs", "LeetCode 509: Fibonacci Number"] },
+            41: { week: 6, focus: "FastAPI/Flask: API Fundamentals", tasks: ["Tools: Choose FastAPI or Flask. Build a simple \"Hello World\" REST API.", "DSA (Dynamic Programming): Solve 1-2 \"Easy\" DP problems."], skills: ["Python", "Backend", "DSA"], problems: ["LeetCode 198: House Robber", "LeetCode 746: Min Cost Climbing Stairs"] },
+            42: { week: 6, focus: "Project 2: Classical Optimization & API", tasks: ["Project 2: Implement a classical solver for your problem.", "Project 2: Integrate this solver into a FastAPI/Flask API.", "DSA (Dynamic Programming): Solve 2 \"Easy\" DP problems."], skills: ["Python", "Backend", "Project", "DSA"], problems: ["LeetCode 300: Longest Increasing Subsequence (Medium)", "LeetCode 53: Maximum Subarray"] },
+            43: { week: 6, focus: "Project 2: QAOA Integration", tasks: ["Project 2: Integrate Qiskit Optimization (QAOA) into your project.", "DSA (Dynamic Programming): Attempt 1-2 \"Medium\" DP problems."], skills: ["Qiskit", "QC", "Project", "DSA"], problems: ["LeetCode 62: Unique Paths", "LeetCode 647: Palindromic Substrings"] },
+            44: { week: 6, focus: "Project 2: Dockerization & Local Testing", tasks: ["Project 2: Create a `Dockerfile` for your Project 2 API.", "Project 2: Build and run the Docker image locally. Test endpoints.", "DSA: Review Graph and Dynamic Programming concepts."], skills: ["Docker", "MLOps", "Project", "DSA"], problems: ["LeetCode 139: Word Break (Medium)", "LeetCode 322: Coin Change (Medium)"] },
+            45: { week: 7, focus: "Project 2: Cloud Deployment to EC2", tasks: ["Project 2: Deploy your Dockerized Project 2 API to your **AWS EC2** instance. Ensure it's accessible via a public IP/DNS.", "Cloud: Understand security groups, SSH.", "DSA (Greedy Algorithms): Understand the concept. Solve 1-2 \"Easy\" problems."], skills: ["AWS (EC2 Deployment)", "Docker", "Project Deployment", "DSA (Greedy)"], problems: ["LeetCode 122: Best Time to Buy and Sell Stock II", "LeetCode 455: Assign Cookies"] },
+            46: { week: 7, focus: "Reinforcement Learning: Core Concepts", tasks: ["RL: Deep dive into Agent, Environment, States, Actions, Rewards, Policy, Value Function.", "Resource: Watch introductory lectures (e.g., David Silver's RL course, or freeCodeCamp intro).", "DSA (Greedy Algorithms): Solve 2 \"Easy\" problems."], skills: ["RL Concepts", "DSA (Greedy)"], problems: ["LeetCode 55: Jump Game", "LeetCode 435: Non-overlapping Intervals"] },
+            47: { week: 7, focus: "Reinforcement Learning: Q-Learning Algorithm", tasks: ["RL: Understand the Q-learning algorithm in detail. Review pseudo-code.", "DSA (Backtracking): Understand the concept. Solve 1-2 \"Easy\" problems."], skills: ["RL (Q-Learning)", "DSA (Backtracking)"], problems: ["LeetCode 78: Subsets", "LeetCode 46: Permutations"] },
+            48: { week: 7, focus: "C++ / Julia: Conceptual Understanding & \"Hello World\"", tasks: ["Languages: Understand the role of C++ and Julia in high-performance computing, especially for quantum simulations.", "Hands-on: Install one (e.g., Julia). Write a \"Hello World\" program. Understand basic syntax differences from Python.", "DSA (Backtracking): Solve 2 \"Easy\" problems."], skills: ["C++/Julia (Conceptual)", "Basic Syntax", "DSA (Backtracking)"], problems: ["LeetCode 39: Combination Sum", "LeetCode 79: Word Search (Medium)"] },
+            49: { week: 7, focus: "JAX: Conceptual Understanding", tasks: ["ML Framework: Understand JAX's purpose for high-performance numerical computing, automatic differentiation, and its relevance to ML/Quantum research. No deep hands-on yet.", "DSA (Backtracking): Attempt 1-2 \"Medium\" problems."], skills: ["JAX (Conceptual)", "DSA (Backtracking)"], problems: ["LeetCode 17: Letter Combinations of a Phone Number", "LeetCode 51: N-Queens (Hard, understand concept)"] },
+            50: { week: 7, focus: "Project 2: Refinement & Documentation", tasks: ["Project 2: Refine code, ensure API is robust.", "Project 2: Write a detailed README for GitHub, including deployment instructions and a live demo link (if possible).", "Git/GitHub: Push all changes to `HybridQuantumOptimization` repo."], skills: ["Project Documentation", "Code Refactoring", "Git", "GitHub"], problems: [] },
+            51: { week: 7, focus: "DSA: Review & Mock Interview", tasks: ["DSA: Consolidate all DSA topics covered so far.", "Mock Interview: Choose 2 \"Medium\" problems. Practice explaining solutions aloud, analyzing complexity, and discussing edge cases."], skills: ["DSA Review", "Interview Prep"], problems: ["LeetCode 138: Copy List with Random Pointer (Medium)", "LeetCode 297: Serialize and Deserialize Binary Tree (Hard)"] },
+            52: { week: 8, focus: "Qiskit: IBM Quantum Experience (Hands-on)", tasks: ["Qiskit: Log in to IBM Quantum Experience. Run simple circuits on a real quantum device (if credits allow, otherwise use their simulators with hardware noise models).", "DSA (Bit Manipulation): Understand basic bitwise operations. Solve 1-2 \"Easy\" problems."], skills: ["Qiskit (IBM Quantum Experience)", "Quantum Hardware", "DSA (Bit Manipulation)"], problems: ["LeetCode 191: Number of 1 Bits", "LeetCode 338: Counting Bits"] },
+            53: { week: 8, focus: "Qiskit: Error Mitigation (Conceptual)", tasks: ["Quantum Concepts: Understand the need for error mitigation in NISQ devices. Learn about basic techniques (e.g., Readout Error Mitigation, Zero-Noise Extrapolation - conceptually).", "DSA (Bit Manipulation): Solve 2 \"Easy\" problems."], skills: ["Quantum Error Mitigation (Conceptual)", "DSA (Bit Manipulation)"], problems: ["LeetCode 268: Missing Number", "LeetCode 136: Single Number"] },
+            54: { week: 8, focus: "AWS/Azure/GCP: High-Level Overview of Quantum Services", tasks: ["Cloud: Research **AWS Braket**, **Azure Quantum**, and **Google Cloud Quantum AI Platform**. Understand their offerings (managed services, quantum hardware access, SDKs).", "DSA (Math & Geometry): Review basic math concepts for coding interviews."], skills: ["Cloud Quantum Platforms (Overview)", "DSA (Math)"], problems: ["LeetCode 9: Palindrome Number", "LeetCode 204: Count Primes"] },
+            55: { week: 8, focus: "Cloud Platforms: Serverless Functions (Conceptual)", tasks: ["Cloud: Understand the concept of serverless computing (AWS Lambda, Azure Functions). When to use them vs. EC2.", "DSA (Math & Geometry): Solve 1-2 \"Easy\" problems."], skills: ["Cloud (Serverless)", "DSA (Math)"], problems: ["LeetCode 29: Divide Two Integers (Medium)", "LeetCode 50: Pow(x, n) (Medium)"] },
+            56: { week: 8, focus: "Project 2: Final Polish & Readme Enhancements", tasks: ["Project 2: Review code for best practices. Ensure README is comprehensive, includes screenshots/GIFs of the deployed app, and clearly quantifies any performance gains.", "Git/GitHub: Final push to GitHub."], skills: ["Project Finalization", "GitHub Best Practices"], problems: [] },
+            57: { week: 8, focus: "DSA: Aggressive \"Medium\" Problem Practice", tasks: ["DSA: Focus solely on \"Medium\" problems from all categories. Aim to solve 3-4 problems today. Time yourself."], skills: ["DSA Intensive Practice"], problems: ["LeetCode 146: LRU Cache (Medium/Hard)", "LeetCode 239: Sliding Window Maximum (Hard)", "LeetCode 416: Partition Equal Subset Sum (Medium)"] },
+            58: { week: 8, focus: "Catch-up & Review", tasks: ["Review all concepts from Month 2. Revisit any challenging topics.", "Ensure all projects are well-documented and pushed to GitHub."], skills: ["Comprehensive Review"], problems: [] },
+            59: { week: 8, focus: "Prepare for Month 3 & Early Application Strategy", tasks: ["Review Month 3 objectives.", "Start drafting a \"Skills\" section for your CV.", "Identify professors/labs for PhD applications."], skills: ["Career Planning", "CV Prep"], problems: [] },
+            60: { week: 8, focus: "Rest & Recharge / Light Review", tasks: ["Take a well-deserved break or do a light review."], skills: ["Rest"], problems: [] },
+            // Month 3
+            61: { week: 9, focus: "Qiskit: Quantum Machine Learning Intro", tasks: ["Qiskit: Explore `qiskit.machine_learning` documentation. Understand the concept of Quantum Support Vector Machines (QSVM) and Quantum Kernel Methods.", "DSA (Heaps): Understand Min-Heap and Max-Heap. Solve 1-2 \"Easy\" problems."], skills: ["Qiskit (ML)", "QML Concepts", "DSA (Heaps)"], problems: ["LeetCode 703: Kth Largest Element in a Stream", "LeetCode 215: Kth Largest Element in an Array (Medium)"] },
+            62: { week: 9, focus: "Qiskit: Quantum Feature Maps", tasks: ["Qiskit: Understand how quantum feature maps encode classical data into quantum states. Implement a simple feature map (e.g., `ZFeatureMap`, `ZZFeatureMap`).", "DSA (Heaps): Solve 2 \"Easy\" problems."], skills: ["Qiskit (Feature Maps)", "QML Concepts", "DSA (Heaps)"], problems: ["LeetCode 347: Top K Frequent Elements (Heap solution)", "LeetCode 973: K Closest Points to Origin (Medium)"] },
+            63: { week: 9, focus: "PyTorch/TF: RNNs Basics", tasks: ["ML Framework: Learn about Recurrent Neural Networks (RNNs), LSTMs, GRUs. Build a simple RNN for sequence data (e.g., text classification or time series).", "ML Concepts: Understand sequential data processing.", "DSA (Intervals): Understand how to merge/insert intervals. Solve 1-2 \"Medium\" problems."], skills: ["PyTorch/TensorFlow (RNNs)", "ML Concepts", "DSA (Intervals)"], problems: ["LeetCode 56: Merge Intervals", "LeetCode 57: Insert Interval"] },
+            64: { week: 9, focus: "ML: Classical ML/DL Algorithms (Conceptual)", tasks: ["ML Concepts: Understand the high-level purpose and use cases for Transformers, Graph Neural Networks (GNNs), Autoencoders. No deep implementation, just conceptual.", "DSA (Intervals): Solve 2 \"Medium\" problems."], skills: ["ML Algorithms (Conceptual)", "DSA (Intervals)"], problems: ["LeetCode 435: Non-overlapping Intervals", "LeetCode 252: Meeting Rooms (Premium, find similar)"] },
+            65: { week: 9, focus: "Cloud: Azure Quantum & Functions (Conceptual)", tasks: ["Cloud (Azure): Research **Azure Quantum** platform. Understand its offerings (quantum hardware access, Q# language).", "Cloud: Understand **Azure Functions** (serverless compute). Compare to AWS Lambda.", "DSA (Sliding Window - Advanced): Solve 1-2 \"Medium\" problems."], skills: ["Azure Quantum", "Azure Functions", "Cloud Concepts", "DSA (Sliding Window)"], problems: ["LeetCode 76: Minimum Window Substring", "LeetCode 239: Sliding Window Maximum (Hard)"] },
+            66: { week: 9, focus: "Cloud: GCP Cloud AI Platform & BigQuery (Conceptual)", tasks: ["Cloud (GCP): Research **Google Cloud AI Platform** (managed ML services) and **BigQuery** (serverless data warehouse).", "DSA (Graphs - Advanced): Solve 2 \"Medium\" Graph problems."], skills: ["GCP AI Platform", "BigQuery", "Cloud Concepts", "DSA (Graphs)"], problems: ["LeetCode 743: Network Delay Time", "LeetCode 130: Surrounded Regions"] },
+            67: { week: 9, focus: "Project 3 Kick-off & Design", tasks: ["Project 3: \"Quantum-Enhanced Classification with Simulated Noise.\" Define a small classical dataset (e.g., Iris, or a downscaled MNIST). Outline classical vs. quantum approach. Plan for simulated noise.", "DSA: Consolidate Heaps, Intervals, Advanced Sliding Window, Advanced Graphs. Attempt 1-2 \"Hard\" problems."], skills: ["Project Planning", "DSA Review"], problems: [] },
+            68: { week: 10, focus: "Project 3: Dataset Prep & Classical Baseline", tasks: ["Project 3: Load and preprocess your chosen dataset using **Pandas/NumPy**.", "Project 3: Implement a classical **Scikit-learn** or **PyTorch/TF** classifier as a baseline.", "DSA (Dynamic Programming - Advanced): Solve 1-2 \"Medium\" problems."], skills: ["Project Implementation", "Pandas", "NumPy", "Scikit-learn/PyTorch/TF", "DSA (Dynamic Programming)"], problems: ["LeetCode 322: Coin Change", "LeetCode 416: Partition Equal Subset Sum"] },
+            69: { week: 10, focus: "Project 3: QSVM/Quantum Kernel Implementation", tasks: ["Project 3: Implement a **QSVM** or a **Quantum Kernel Method** using **Qiskit Machine Learning** with a relevant quantum feature map for your dataset.", "DSA (Dynamic Programming - Advanced): Solve 2 \"Medium\" problems."], skills: ["Qiskit (ML)", "QML", "Project Implementation", "DSA (Dynamic Programming)"], problems: ["LeetCode 647: Palindromic Substrings", "LeetCode 139: Word Break"] },
+            70: { week: 10, focus: "Project 3: Simulated Noise & Mitigation (Conceptual)", tasks: ["Project 3: Implement simple simulated noise (e.g., depolarizing noise) in your quantum circuits using Qiskit's noise models.", "Project 3: Discuss basic noise mitigation strategies conceptually in your README (e.g., readout error mitigation, repetition codes).", "DSA (Dynamic Programming - Advanced): Attempt 1-2 \"Hard\" problems."], skills: ["Qiskit (Noise Models)", "Quantum Error Mitigation (Conceptual)", "Project Implementation", "DSA (Dynamic Programming)"], problems: ["LeetCode 72: Edit Distance", "LeetCode 123: Best Time to Buy and Sell Stock III"] },
+            71: { week: 10, focus: "Project 3: Analysis, Visualization & Documentation", tasks: ["Project 3: Compare performance of classical vs. quantum models. Visualize results.", "Project 3: Write a detailed README for GitHub, explaining the QML approach, noise simulation, and findings.", "Git/GitHub: Push all Project 3 code to a new public repo (`QuantumEnhancedClassifier`)."], skills: ["Project Analysis", "Visualization", "Documentation", "Git", "GitHub"], problems: [] },
+            72: { week: 10, focus: "MLOps: CI/CD Concepts", tasks: ["Tools: Understand Continuous Integration (CI) and Continuous Deployment (CD) principles.", "Conceptual: Research tools like GitHub Actions, GitLab CI/CD, Jenkins. Understand their role in automating testing and deployment.", "DSA (Tries): Understand prefix trees. Solve 1-2 \"Easy\" problems."], skills: ["CI/CD Concepts", "MLOps", "DSA (Tries)"], problems: ["LeetCode 208: Implement Trie (Prefix Tree)", "LeetCode 211: Design Add and Search Words Data Structure (Medium)"] },
+            73: { week: 10, focus: "MLOps: Kubernetes (Conceptual)", tasks: ["Tools: Understand Kubernetes as a container orchestration platform. What problems does it solve? (scaling, self-healing).", "Conceptual: High-level overview of pods, deployments, services.", "DSA (Tries): Solve 2 \"Easy\" problems."], skills: ["Kubernetes (Conceptual)", "MLOps", "DSA (Tries)"], problems: [] },
+            74: { week: 10, focus: "Databases: SQL (PostgreSQL) & NoSQL (MongoDB) Concepts", tasks: ["Databases: Understand the differences between SQL (Relational, e.g., PostgreSQL) and NoSQL (Non-Relational, e.g., MongoDB). When to use each.", "Conceptual: Basic CRUD operations.", "DSA (Backtracking - Advanced): Solve 1-2 \"Medium\" problems."], skills: ["Databases (Conceptual)", "DSA (Backtracking)"], problems: ["LeetCode 79: Word Search", "LeetCode 40: Combination Sum II"] },
+            75: { week: 11, focus: "Reinforcement Learning: Policy Gradients (Conceptual)", tasks: ["RL: Understand the basic idea of Policy Gradient methods (e.g., REINFORCE). Contrast with Q-learning.", "DSA (Backtracking): Solve 2 \"Medium\" problems."], skills: ["RL (Policy Gradients)", "DSA (Backtracking)"], problems: ["LeetCode 51: N-Queens (Hard, understand concept)", "LeetCode 37: Sudoku Solver (Hard, understand concept)"] },
+            76: { week: 11, focus: "Cloud: AWS SageMaker (Conceptual)", tasks: ["Cloud (AWS): Research **AWS SageMaker** as a fully managed service for ML workflows (data labeling, training, deployment).", "DSA (Union-Find): Understand the Disjoint Set Union data structure. Solve 1-2 \"Medium\" problems."], skills: ["AWS SageMaker (Conceptual)", "MLOps", "DSA (Union-Find)"], problems: ["LeetCode 547: Number of Provinces", "LeetCode 130: Surrounded Regions (Union-Find approach)"] },
+            77: { week: 11, focus: "Cloud: Azure Cosmos DB & GCP GKE (Conceptual)", tasks: ["Cloud (Azure/GCP): Understand **Azure Cosmos DB** (globally distributed NoSQL) and **GCP Google Kubernetes Engine (GKE)** (managed Kubernetes).", "DSA (Union-Find): Solve 2 \"Medium\" problems."], skills: ["Cloud (Databases, Kubernetes)", "DSA (Union-Find)"], problems: ["LeetCode 200: Number of Islands (Union-Find approach)", "LeetCode 990: Satisfiability of Equality Equations"] },
+            78: { week: 11, focus: "C++ / Julia: Basic Data Structures & Control Flow", tasks: ["Languages: Review basic data structures (arrays, lists) and control flow (loops, conditionals) in C++ or Julia.", "Hands-on: Implement a simple sorting algorithm in your chosen language.", "DSA (Advanced Graphs - Dijkstra/Bellman-Ford Conceptual): Understand shortest path algorithms."], skills: ["C++/Julia (Intermediate)", "DSA (Advanced Graphs)"], problems: ["LeetCode 743: Network Delay Time (Dijkstra)", "LeetCode 787: Cheapest Flights Within K Stops (Bellman-Ford/BFS)"] },
+            79: { week: 11, focus: "JAX: Basic Operations & Auto-differentiation", tasks: ["ML Framework: Explore JAX for basic array operations (`jax.numpy`). Understand `jax.grad` for automatic differentiation.", "Hands-on: Implement a simple linear regression using JAX and `jax.grad`.", "DSA (Advanced Graphs - MST Conceptual): Understand Minimum Spanning Tree (Prim's/Kruskal's)."], skills: ["JAX", "ML Concepts", "DSA (Advanced Graphs)"], problems: ["LeetCode 1135: Connecting Cities With Minimum Cost (Premium, find similar)", "LeetCode 1584: Min Cost to Connect All Points (Medium)"] },
+            80: { week: 11, focus: "Tools: OR-Tools, NetworkX, RDKit, Biopython (Conceptual)", tasks: ["Tools: Understand the purpose and use cases for these specialized libraries: - **OR-Tools:** Optimization problems. - **NetworkX:** Graph theory. - **RDKit/Biopython:** Chemoinformatics/Bioinformatics (relevant to Dr. Sharma's projects).", "DSA (Math & Geometry - Advanced): Solve 1-2 \"Medium\" problems."], skills: ["Specialized Tools (Conceptual)", "DSA (Math & Geometry)"], problems: ["LeetCode 204: Count Primes", "LeetCode 50: Pow(x, n)"] },
+            81: { week: 11, focus: "Project 3: Final Polish & Readme Enhancements", tasks: ["Project 3: Review code for best practices. Ensure README is comprehensive, includes screenshots/GIFs, and clearly quantifies any performance comparisons (classical vs. quantum).", "Git/GitHub: Final push to GitHub."], skills: ["Project Finalization", "GitHub Best Practices"], problems: [] },
+            82: { week: 12, focus: "Project 4 Kick-off & Design", tasks: ["Project 4: \"Interdisciplinary Quantum AI Capstone Project.\" Choose one of the options (e.g., Quantum-Inspired Optimization for Materials Discovery/Simulation OR Reinforcement Learning for Quantum Experiment Design). Outline the problem, approach, and technologies.", "DSA: Focus on \"Medium\" and \"Hard\" problems. Aim for 3-4 problems today."], skills: ["Project Planning", "DSA Intensive Practice"], problems: [] },
+            83: { week: 12, focus: "Project 4: Core Implementation - Phase 1", tasks: ["Project 4: Start implementing the core logic for your chosen Capstone Project. This will involve integrating multiple skills (e.g., Qiskit + PyTorch/TF + Pandas).", "DSA: Solve 3-4 \"Medium/Hard\" problems."], skills: ["Project Implementation", "DSA Intensive Practice"], problems: ["LeetCode 146: LRU Cache (Medium/Hard)", "LeetCode 239: Sliding Window Maximum (Hard)"] },
+            84: { week: 12, focus: "Project 4: Core Implementation - Phase 2", tasks: ["Project 4: Continue with implementation. Focus on making the code clean, modular, and well-commented.", "DSA: Solve 3-4 \"Medium/Hard\" problems."], skills: ["Project Implementation", "DSA Intensive Practice"], problems: ["LeetCode 124: Binary Tree Maximum Path Sum (Hard)", "LeetCode 23: Merge k Sorted Lists (Hard)"] },
+            85: { week: 12, focus: "Project 4: Integration & Testing", tasks: ["Project 4: Integrate different components of your project. Perform thorough testing.", "DSA: Solve 3-4 \"Medium/Hard\" problems."], skills: ["Project Implementation", "Testing", "DSA Intensive Practice"], problems: ["LeetCode 212: Word Search II (Hard)", "LeetCode 42: Trapping Rain Water (Hard)"] },
+            86: { week: 12, focus: "Project 4: Documentation & Presentation Prep", tasks: ["Project 4: Write a comprehensive README for your Capstone Project. Include problem statement, methodology, results, and future work. Prepare for potential presentation (e.g., mock demo).", "DSA: Solve 3-4 \"Medium\" problems."], skills: ["Project Documentation", "Presentation Prep", "DSA Intensive Practice"], problems: [] },
+            87: { week: 12, focus: "DSA: Final Aggressive Practice", tasks: ["DSA: Dedicate the entire day to solving as many \"Medium\" and \"Hard\" problems as possible. Focus on speed and accuracy. Review solutions if stuck."], skills: ["DSA Intensive Practice"], problems: [] },
+            88: { week: 12, focus: "Resume/CV & Statement of Purpose (SoP) Refinement", tasks: ["CV: Update your CV to prominently feature your new skills, projects (with GitHub links), and certifications. Tailor your objective statement and skill sections to align with Quantum AI keywords (like Dr. Sharma's).", "SoP (PhD): Draft or refine your Statement of Purpose. Connect your background to your PhD goals in Quantum Computing and AI, emphasizing your new projects and self-learning as evidence of your passion and capability."], skills: ["CV Refinement", "SoP Drafting"], problems: [] },
+            89: { week: 12, focus: "Mock Interviews & Behavioral Prep", tasks: ["Interview Prep: Practice explaining your projects. Be ready to discuss challenges, decisions, and learnings.", "Behavioral Questions: Prepare answers for common behavioral questions (e.g., \"Tell me about a time you failed,\" \"Why Quantum AI?\").", "DSA: Light review or re-solve favorite problems."], skills: ["Interview Prep (Technical & Behavioral)"], problems: [] },
+            90: { week: 12, focus: "Final Review & Rest", tasks: ["Quick review of all key concepts and projects.", "Rest: A crucial day to relax and recharge before potential applications/interviews."], skills: ["Review", "Rest"], problems: [] },
+            // Month 4 (Days 91-120)
+            91: { week: 13, focus: "Project 4: Capstone Development - Phase 3", tasks: ["Continue implementing complex features for your Capstone Project, focusing on integrating quantum and ML components deeply.", "DSA: Solve 3-4 \"Hard\" problems from various categories."], skills: ["Project Implementation", "DSA Intensive Practice"], problems: ["LeetCode 10: Regular Expression Matching (Hard)", "LeetCode 32: Longest Valid Parentheses (Hard)"] },
+            92: { week: 13, focus: "Project 4: Capstone Development - Phase 4", tasks: ["Refine algorithms and optimize code for performance. Address any identified bottlenecks.", "DSA: Solve 3-4 \"Hard\" problems."], skills: ["Project Optimization", "DSA Intensive Practice"], problems: ["LeetCode 25: Reverse Nodes in k-Group (Hard)", "LeetCode 149: Max Points on a Line (Hard)"] },
+            93: { week: 13, focus: "Quantum Error Correction (Intermediate)", tasks: ["Deep dive into more complex QEC codes (e.g., Shor code, surface codes - conceptual understanding).", "DSA: Solve 2-3 \"Hard\" problems."], skills: ["QC", "DSA"], problems: ["LeetCode 4: Median of Two Sorted Arrays (Hard)", "LeetCode 127: Word Ladder (Hard)"] },
+            94: { week: 13, focus: "Quantum Hardware Architectures (Conceptual)", tasks: ["Research different quantum hardware platforms (superconducting, trapped ion, photonic, topological). Understand their pros and cons.", "DSA: Solve 2-3 \"Hard\" problems."], skills: ["QC", "DSA"], problems: ["LeetCode 135: Candy (Hard)", "LeetCode 140: Word Break II (Hard)"] },
+            95: { week: 13, focus: "MLOps: Advanced CI/CD & Deployment Strategies", tasks: ["Research advanced CI/CD pipelines for ML models (e.g., MLOps tools like Kubeflow, MLflow). Understand A/B testing, canary deployments.", "DSA: Solve 2-3 \"Hard\" problems."], skills: ["MLOps", "Cloud", "DSA"], problems: ["LeetCode 145: Binary Tree Postorder Traversal (Hard)", "LeetCode 233: Number of Digit One (Hard)"] },
+            96: { week: 13, focus: "Cloud: Specialized ML/AI Services (Deep Dive)", tasks: ["Explore specific ML/AI services on AWS (e.g., Rekognition, Comprehend), Azure (e.g., Cognitive Services), GCP (e.g., Vision AI, Natural Language AI). Understand their APIs and use cases.", "DSA: Solve 2-3 \"Hard\" problems."], skills: ["Cloud", "ML", "DSA"], problems: ["LeetCode 301: Remove Invalid Parentheses (Hard)", "LeetCode 312: Burst Balloons (Hard)"] },
+            97: { week: 13, focus: "Project 4: Testing & Debugging", tasks: ["Thoroughly test your Capstone Project for functionality, edge cases, and performance. Debug any issues systematically.", "DSA: Solve 2-3 \"Hard\" problems."], skills: ["Project", "Debugging", "DSA"], problems: ["LeetCode 329: Longest Increasing Path in a Matrix (Hard)", "LeetCode 330: Patching Array (Hard)"] },
+            98: { week: 14, focus: "Project 4: Performance Benchmarking & Optimization", tasks: ["Benchmark your project's performance (classical vs. quantum components). Implement further optimizations if possible.", "DSA: Solve 3-4 \"Hard\" problems."], skills: ["Project Optimization", "Performance Tuning", "DSA Intensive Practice"], problems: ["LeetCode 354: Russian Doll Envelopes (Hard)", "LeetCode 377: Combination Sum IV (Medium/Hard)"] },
+            99: { week: 14, focus: "Ethical AI & Quantum Implications", tasks: ["Research ethical considerations in AI (bias, fairness, transparency). Discuss potential ethical implications of Quantum AI.", "DSA: Solve 3-4 \"Hard\" problems."], skills: ["Ethics", "Critical Thinking", "DSA Intensive Practice"], problems: ["LeetCode 403: Frog Jump (Hard)", "LeetCode 410: Split Array Largest Sum (Hard)"] },
+            100: { week: 14, focus: "Academic Writing & Presentation Skills", tasks: ["Refine your academic writing style. Practice presenting complex technical topics clearly and concisely (e.g., present your Capstone Project to yourself or a peer).", "DSA: Solve 3-4 \"Hard\" problems."], skills: ["Communication", "Presentation", "DSA Intensive Practice"], problems: ["LeetCode 446: Arithmetic Slices II - Subsequence (Hard)", "LeetCode 460: LFU Cache (Hard)"] },
+            101: { week: 14, focus: "Patent & IP in Quantum/AI (Conceptual)", tasks: ["Understand basic concepts of intellectual property (IP) and patents, specifically in the context of emerging technologies like Quantum Computing and AI.", "DSA: Solve 3-4 \"Hard\" problems."], skills: ["IP", "Legal (Conceptual)", "DSA Intensive Practice"], problems: ["LeetCode 480: Sliding Window Median (Hard)", "LeetCode 493: Reverse Pairs (Hard)"] },
+            102: { week: 14, focus: "Research Paper Analysis & Critique", tasks: ["Select 1-2 recent Quantum AI research papers from arXiv. Read them critically, understanding methodology, results, and limitations. Summarize key findings.", "DSA: Solve 3-4 \"Hard\" problems."], skills: ["Research", "Critical Thinking", "DSA Intensive Practice"], problems: ["LeetCode 514: Freedom Trail (Hard)", "LeetCode 546: Remove Boxes (Hard)"] },
+            103: { week: 14, focus: "Project 4: Final Documentation & README", tasks: ["Write a comprehensive, polished README for your Capstone Project. Include problem, solution, results, technical details, and future work. Ensure it's ready for public GitHub.", "DSA: Solve 3-4 \"Hard\" problems."], skills: ["Project Documentation", "GitHub Best Practices", "DSA Intensive Practice"], problems: ["LeetCode 630: Course Schedule III (Hard)", "LeetCode 664: Strange Printer (Hard)"] },
+            104: { week: 14, focus: "Catch-up & Review", tasks: ["Review all concepts from Month 3 and early Month 4. Revisit any challenging topics.", "Ensure all projects are well-documented and pushed to GitHub."], skills: ["Comprehensive Review"], problems: [] },
+            105: { week: 15, focus: "PhD Application Strategy & SoP Polish", tasks: ["Refine your Statement of Purpose (SoP) for PhD applications. Tailor it to specific university programs and faculty research interests. Seek feedback.", "DSA: Focus on \"Hard\" problems. Aim for 3-4 problems today."], skills: ["Career Planning", "SoP Drafting"], problems: ["LeetCode 679: 24 Game (Hard)", "LeetCode 685: Redundant Connection II (Hard)"] },
+            106: { week: 15, focus: "Job Application Strategy & Resume Tailoring", tasks: ["Tailor your resume for specific job applications (e.g., Google Quantum AI, IBM Quantum). Highlight relevant projects and skills. Prepare for ATS (Applicant Tracking System) compatibility.", "DSA: Solve 3-4 \"Hard\" problems."], skills: ["Career Planning", "CV Refinement"], problems: ["LeetCode 719: Find K-th Smallest Pair Distance (Hard)", "LeetCode 753: Cracking the Safe (Hard)"] },
+            107: { week: 15, focus: "Behavioral Interview Prep (STAR Method)", tasks: ["Practice answering behavioral questions using the STAR method (Situation, Task, Action, Result). Prepare stories for common themes (teamwork, conflict, leadership, failure).", "DSA: Solve 3-4 \"Hard\" problems."], skills: ["Interview Prep (Behavioral)", "Communication"], problems: ["LeetCode 765: Couples Holding Hands (Hard)", "LeetCode 768: Max Chunks To Make Sorted II (Hard)"] },
+            108: { week: 15, focus: "System Design Interview Prep (Conceptual)", tasks: ["Understand basic system design concepts relevant to ML/AI systems (scalability, reliability, latency, data pipelines). No deep dive, just high-level understanding for entry-level roles.", "DSA: Solve 3-4 \"Hard\" problems."], skills: ["System Design (Conceptual)", "MLOps", "DSA Intensive Practice"], problems: ["LeetCode 778: Swim in Rising Water (Hard)", "LeetCode 780: Reaching Points (Hard)"] },
+            109: { week: 15, focus: "Networking & Informational Interviews", tasks: ["Reach out to professionals in Quantum AI via LinkedIn for informational interviews. Learn about their roles, companies, and career paths. Ask for advice.", "DSA: Solve 3-4 \"Hard\" problems."], skills: ["Networking", "Communication"], problems: ["LeetCode 815: Bus Routes (Hard)", "LeetCode 827: Making A Large Island (Hard)"] },
+            110: { week: 15, focus: "Open Source Contributions (Conceptual)", tasks: ["Research how to contribute to open-source quantum or ML projects (e.g., Qiskit, PennyLane). Understand the workflow (fork, branch, pull request).", "DSA: Solve 3-4 \"Hard\" problems."], skills: ["Open Source", "Collaboration", "DSA Intensive Practice"], problems: ["LeetCode 834: Sum of Distances in Tree (Hard)", "LeetCode 847: Shortest Path Visiting All Nodes (Hard)"] },
+            111: { week: 15, focus: "Final DSA Mock Interview", tasks: ["Conduct a full 45-60 minute mock technical interview (2-3 \"Medium\" or 1 \"Hard\" problem) with a peer or using an online platform. Focus on communication and problem-solving process.", "Interview Prep"], skills: ["DSA Interview Prep", "Communication"], problems: [] },
+            112: { week: 16, focus: "Final Project Portfolio Review", tasks: ["Review all 4 projects. Ensure GitHub repos are clean, well-documented, and showcase your best work. Prepare to discuss each project in detail.", "DSA: Light review or re-solve favorite problems."], skills: ["Portfolio Management", "Project Review"], problems: [] },
+            113: { week: 16, focus: "Latest Trends in Quantum AI", tasks: ["Read recent news, articles, and reports on the latest breakthroughs and trends in Quantum AI (e.g., new quantum hardware, algorithms, industry applications).", "DSA: Light review or re-solve favorite problems."], skills: ["Industry Knowledge", "Continuous Learning"], problems: [] },
+            114: { week: 16, focus: "Personal Learning Plan for Post-4 Months", tasks: ["Develop a long-term learning plan for continued growth in Quantum AI, identifying areas for deeper specialization or new skills to acquire.", "DSA: Light review or re-solve favorite problems."], skills: ["Self-Development", "Planning"], problems: [] },
+            115: { week: 16, focus: "Health & Well-being Check", tasks: ["Reflect on your mental and physical well-being throughout this intensive period. Plan for rest and recovery. This is crucial for sustained performance.", "DSA: Light review or re-solve favorite problems."], skills: ["Self-Care", "Mindfulness"], problems: [] },
+            116: { week: 16, focus: "Application Submission & Follow-up", tasks: ["Begin submitting PhD applications and/or job applications. Keep track of deadlines. Prepare for follow-up emails and potential interview invitations.", "DSA: Light review or re-solve favorite problems."], skills: ["Job Application", "Follow-up"], problems: [] },
+            117: { week: 16, focus: "Contingency Planning & Alternative Paths", tasks: ["Consider alternative career paths or learning opportunities if initial applications don't yield immediate results (e.g., research assistant roles, specialized bootcamps, master's programs).", "DSA: Light review or re-solve favorite problems."], skills: ["Resilience", "Adaptability"], problems: [] },
+            118: { week: 16, focus: "Community Engagement & Mentorship", tasks: ["Engage with online Quantum AI communities (e.g., Qiskit Slack, Discord servers). Seek out potential mentors for long-term guidance.", "DSA: Light review or re-solve favorite problems."], skills: ["Networking", "Community Building"], problems: [] },
+            119: { week: 16, focus: "Celebration of Achievements", tasks: ["Acknowledge and celebrate your incredible dedication and progress over these four months. You've built a substantial foundation!", "DSA: Light review or re-solve favorite problems."], skills: ["Motivation", "Self-Appreciation"], problems: [] },
+            120: { week: 16, focus: "Rest & Future Vision", tasks: ["Take a significant break to recharge. Begin to envision your next steps with renewed energy and clarity.", "DSA: Light review or re-solve favorite problems."], skills: ["Rest", "Future Planning"], problems: [] }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const tabs = document.querySelectorAll('.tab-button');
+            const tabContentContainer = document.getElementById('tab-content');
+            const progressBar = document.getElementById('progress-bar');
+            const progressDay = document.getElementById('progress-day');
+
+            // --- PROGRESS BAR LOGIC ---
+            const totalPlanDays = 120; // Updated to 120 days
+            const planStartDate = new Date('2025-07-29T00:00:00'); // Set a fixed start date
+            const today = new Date();
+            let currentDayOfPlan = Math.floor((today - planStartDate) / (1000 * 60 * 60 * 24)) + 1;
+            if (currentDayOfPlan < 1) currentDayOfPlan = 1;
+            if (currentDayOfPlan > totalPlanDays) currentDayOfPlan = totalPlanDays; // Cap at totalPlanDays
+            
+            const progressPercentage = (currentDayOfPlan / totalPlanDays) * 100;
+            progressBar.style.width = `${progressPercentage}%`;
+            progressBar.textContent = `${Math.round(progressPercentage)}%`;
+            progressDay.textContent = `Day ${currentDayOfPlan}`;
+
+
+            // --- TAB RENDERING LOGIC ---
+            const renderMonthContent = (month) => {
+                tabContentContainer.innerHTML = '';
+                const weeks = {};
+                
+                // Calculate start and end day for the current month tab
+                const startDay = (month - 1) * 30 + 1;
+                const endDay = month * 30; // No longer capping at 90 here, let data drive it
+
+                for (let dayNum = startDay; dayNum <= endDay; dayNum++) {
+                    const data = curriculumData[dayNum];
+                    if (data) { // Ensure data exists for the day
+                        if (!weeks[data.week]) {
+                            weeks[data.week] = [];
+                        }
+                        weeks[data.week].push({ day: dayNum, ...data });
+                    }
+                }
+
+                if (Object.keys(weeks).length === 0 && month * 30 > Object.keys(curriculumData).length) {
+                    // This condition handles cases where a month tab is beyond the defined curriculumData
+                    const emptyMessage = document.createElement('p');
+                    emptyMessage.className = 'text-center text-slate-500 text-lg mt-8';
+                    emptyMessage.textContent = 'No specific daily tasks defined for this month. This period is ideal for extensive review, project refinement, and application preparation.';
+                    tabContentContainer.appendChild(emptyMessage);
+                    return;
+                }
+
+
+                Object.entries(weeks).forEach(([weekNum, days]) => {
+                    const weekContainer = document.createElement('div');
+                    weekContainer.className = 'mb-6';
+                    
+                    const weekHeader = document.createElement('h3');
+                    weekHeader.className = 'text-xl font-bold text-slate-700 mb-4 border-l-4 border-indigo-500 pl-4';
+                    weekHeader.textContent = `Week ${weekNum}`;
+                    weekContainer.appendChild(weekHeader);
+                    
+                    const daysGrid = document.createElement('div');
+                    daysGrid.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4';
+                    
+                    days.forEach(dayData => {
+                        const dayCard = document.createElement('div');
+                        dayCard.className = 'day-card bg-white rounded-lg shadow-md p-4 border border-slate-200';
+                        dayCard.innerHTML = `
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-lg text-slate-800">Day ${dayData.day}</span>
+                                <span class="text-xs font-semibold bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full">${dayData.focus}</span>
+                            </div>
+                            <div class="day-details">
+                                <h4 class="font-semibold mt-4 mb-2 text-slate-700">Tasks:</h4>
+                                <ul class="list-disc list-inside text-sm text-slate-600 space-y-1">
+                                    ${dayData.tasks.map(task => `<li>${task}</li>`).join('')}
+                                </ul>
+                                <h4 class="font-semibold mt-4 mb-2 text-slate-700">Skills:</h4>
+                                <div class="flex flex-wrap gap-1">
+                                    ${dayData.skills.map(skill => `<span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">${skill}</span>`).join('')}
+                                </div>
+                                ${dayData.problems.length > 0 ? `
+                                <h4 class="font-semibold mt-4 mb-2 text-slate-700">Problems:</h4>
+                                <ul class="list-disc list-inside text-sm text-slate-600 space-y-1">
+                                    ${dayData.problems.map(p => `<li>${p}</li>`).join('')}
+                                </ul>` : ''}
+                            </div>
+                        `;
+                        daysGrid.appendChild(dayCard);
+
+                        dayCard.addEventListener('click', () => {
+                            dayCard.querySelector('.day-details').classList.toggle('open');
+                        });
+                    });
+                    weekContainer.appendChild(daysGrid);
+                    tabContentContainer.appendChild(weekContainer);
+                });
+            };
+
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    const month = parseInt(tab.dataset.tab.replace('month', ''));
+                    renderMonthContent(month);
+                });
+            });
+
+            // --- SKILLS CHART LOGIC ---
+            const skillsCount = {};
+            Object.values(curriculumData).forEach(day => {
+                day.skills.forEach(skill => {
+                    skillsCount[skill] = (skillsCount[skill] || 0) + 1;
+                });
+            });
+
+            const skillsChartCtx = document.getElementById('skillsChart').getContext('2d');
+            new Chart(skillsChartCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(skillsCount),
+                    datasets: [{
+                        label: 'Days per Skill',
+                        data: Object.values(skillsCount),
+                        backgroundColor: [
+                            '#4f46e5', '#10b981', '#3b82f6', '#f59e0b', '#ef4444', 
+                            '#8b5cf6', '#ec4899', '#64748b', '#14b8a6', '#f97316'
+                        ],
+                        borderColor: '#ffffff',
+                        borderWidth: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 15,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed !== null) {
+                                        label += `${context.parsed} days`;
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Initial render
+            renderMonthContent(1);
+        });
+    </script>
+</body>
+</html>
